@@ -18,8 +18,11 @@ function Register() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Successfully registered! Please sign in.');
-      navigate('/login');
+      toast.success('Registration successful! Please check your email to verify your account.');
+      // Delay navigation to allow user to read the verification message
+      setTimeout(() => {
+        navigate('/login');
+      }, 5000);
     }
   };
 
