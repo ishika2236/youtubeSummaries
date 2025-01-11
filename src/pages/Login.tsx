@@ -1,34 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useSignInEmailPassword } from '@nhost/react';
+import { useSignInEmailPassword, useAuthenticationStatus } from '@nhost/react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Mail } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { signInEmailPassword, isLoading } = useSignInEmailPassword();
+  const { isAuthenticated } = useAuthenticationStatus();
   const [showVerificationReminder, setShowVerificationReminder] = useState(false);
-  const { signInEmailPassword, isLoading, error } = useSignInEmailPassword();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const { error, needsEmailVerification } = await signInEmailPassword(email, password);
 
     if (error) {
-      if (error.error === 'unverified-user') {
+      if (error.status === 401) {
         setShowVerificationReminder(true);
-        toast.error('Please verify your email before signing in');
+        toast.error('Please verify your email before signing in.');
       } else {
         toast.error(error.message);
         setShowVerificationReminder(false);
       }
+    } else if (needsEmailVerification) {
+      setShowVerificationReminder(true);
+      toast.error('Please verify your email before signing in.');
     } else {
       toast.success('Successfully signed in!');
       navigate('/');
     }
   };
+
+  // Redirect if already logged in
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -42,27 +59,6 @@ function Login() {
             Sign in to your account
           </h2>
         </div>
-
-        {showVerificationReminder && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-yellow-500/10 border border-yellow-500 rounded-lg p-4"
-          >
-            <div className="flex items-center gap-2 text-yellow-500 mb-2">
-              <Mail className="flex-shrink-0" size={20} />
-              <h3 className="font-semibold">Email Verification Required</h3>
-            </div>
-            <p className="text-gray-300 text-sm">
-              Please check your email ({email}) and click the verification link to activate your account.
-            </p>
-            <p className="text-gray-400 text-sm mt-2">
-              Can't find the email? Check your spam folder or&nbsp;
-              
-            </p>
-          </motion.div>
-        )}
-
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
@@ -99,13 +95,19 @@ function Login() {
             </div>
           </div>
 
+          {showVerificationReminder && (
+            <div className="text-red-500 text-sm mt-2">
+              Please verify your email to proceed.
+            </div>
+          )}
+
           <div>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" />
